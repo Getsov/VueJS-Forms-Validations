@@ -8,39 +8,94 @@
         >
           <h1>Registration</h1>
           <hr />
-          <!-- <div class="form-group">
+          <div class="form-group">
             <label for="email">Email</label>
             <input
               type="text"
               id="email"
               class="form-control"
-              v-model.lazy="formData.email"
+              v-model="$v.formData.email.$model"
             />
           </div>
-          <p>Email is: {{ formData.email }}</p> -->
+          <p>Email is: {{ formData.email }}</p>
+
+          <div class="alert alert-danger" v-if="$v.formData.email.$error">
+            <p v-if="!$v.formData.email.required">
+              Email is required!
+            </p>
+            <p v-if="!$v.formData.email.email">
+              Email is invalid!
+            </p>
+          </div>
           <!-- <EmailInput
             :email="formData.email"
             @emailInput="formData.email = $event"
           /> -->
-          <CustomEmail v-model="formData.email" />
+          <!-- <CustomEmail v-model="formData.email" /> -->
           <div class="form-group">
             <label for="password">Password</label>
             <input
               type="password"
               id="password"
               class="form-control"
-              v-model.trim="formData.password"
+              v-model="$v.formData.password.$model"
             />
+            <div class="alert alert-danger" v-if="$v.formData.password.$error">
+              <p v-if="!$v.formData.password.required">
+                Password is required!
+              </p>
+              <p v-if="!$v.formData.password.minLength">
+                Password must have at least
+                {{ $v.formData.password.$params.minLength.min }} letters
+              </p>
+              <p v-if="!$v.formData.password.maxLength">
+                Password must have at most
+                {{ $v.formData.password.$params.maxLength.max }} letters
+              </p>
+              <p v-if="!$v.formData.password.alphaNum">
+                Password must be alphanumeric
+              </p>
+            </div>
+
             <!---->
           </div>
+
+          <div class="form-group">
+            <label for="repeatPassword">Confirm password</label>
+            <input
+              type="password"
+              id="repeatPassword"
+              class="form-control"
+              v-model="$v.formData.confirmedPassword.$model"
+            />
+            <div
+              class="alert alert-danger"
+              v-if="$v.formData.confirmedPassword.$error"
+            >
+              Passwords don't match
+            </div>
+
+            <!---->
+          </div>
+
           <div class="form-group">
             <label for="age">Age</label>
             <input
               type="number"
               id="age"
               class="form-control"
-              v-model.number="formData.age"
+              v-model="$v.formData.age.$model"
             />
+
+            <div class="alert alert-danger" v-if="$v.formData.age.$error">
+              <p v-if="!$v.formData.age.required">
+                Age is required!
+              </p>
+              <p v-if="!$v.formData.age.minValue">
+                Age must have at least
+                {{ $v.formData.age.$params.minValue.min }}
+              </p>
+            </div>
           </div>
 
           <!---->
@@ -55,8 +110,14 @@
             id="description"
             rows="5"
             class="form-control"
-            v-model="formData.description"
+            v-model="$v.formData.description.$model"
           ></textarea>
+          <div class="alert alert-danger" v-if="$v.formData.description.$error">
+            <p v-if="!$v.formData.description.maxLength.max">
+              Description must not be more than
+              {{ $v.formData.description.$params.maxLength.max }} chars
+            </p>
+          </div>
           <!---->
         </div>
       </div>
@@ -110,7 +171,13 @@
         <div
           class="col-xs-12 col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3"
         >
-          <button class="btn btn-primary" type="submit">Submit!</button>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            :disabled="isSubmitDisabled"
+          >
+            Submit!
+          </button>
         </div>
       </div>
     </form>
@@ -148,13 +215,22 @@
 
 <script>
 // import EmailInput from "./components/EmailInput";
-import CustomEmail from "./components/CustomEmail";
+//import CustomEmail from "./components/CustomEmail";
+import {
+  required,
+  email,
+  minLength,
+  maxLength,
+  alphaNum,
+  minValue,
+  sameAs,
+} from "vuelidate/lib/validators";
 
 export default {
   name: "App",
   components: {
     // EmailInput,
-    CustomEmail,
+    //CustomEmail,
   },
   data() {
     return {
@@ -196,13 +272,35 @@ export default {
         email: "",
         age: 0,
         password: "",
+        confirmedPassword: "",
       },
+
       isSubmitted: false,
     };
   },
+  validations: {
+    formData: {
+      email: { required, email },
+      password: {
+        required,
+        minLength: minLength(4),
+        maxLength: maxLength(16),
+        alphaNum,
+      },
+      confirmedPassword: {
+        sameAs: sameAs("password"),
+      },
+      description: { maxLength: maxLength(100) },
+      age: { required, minValue: minValue(18) },
+    },
+  },
+  computed: {
+    isSubmitDisabled() {
+      return this.$v.$invalid;
+    },
+  },
   methods: {
-    async handleFormSubmit() {
-      this.isSubmitted = true;
+    async basicCall() {
       this.isLoading = true;
       try {
         await fetch("/form-submit", {
@@ -215,6 +313,13 @@ export default {
       }
 
       this.isLoading = false;
+    },
+    async handleFormSubmit() {
+      this.isSubmitted = true;
+      this.$v.$touch();
+      if (this.$v.$invalid) {
+        await this.basicCall();
+      }
     },
   },
 };
